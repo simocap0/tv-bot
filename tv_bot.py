@@ -1,19 +1,15 @@
-#!/usr/bin/env python3
 import json
 import logging
 import re
 from datetime import datetime
 from pathlib import Path
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
-    ContextTypes, MessageHandler, filters, ConversationHandler,
-)
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, ConversationHandler
 
-BOT_TOKEN    = "8651525080:AAGQfE975WtOkFUvqHY3_2RVTF1gqWO4ldg"
+BOT_TOKEN = "8651525080:AAGQfE975WtOkFUvqHY3_2RVTF1gqWO4ldg"
 YOUR_CHAT_ID = 7922394358
 EPISODES_FILE = Path(__file__).parent / "episodes.json"
-HISTORY_FILE  = Path(__file__).parent / "watch_history.json"
+HISTORY_FILE = Path(__file__).parent / "watch_history.json"
 PAGE_SIZE = 10
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -54,15 +50,6 @@ def get_next_episode(series, current_name):
         if ep["name"] == current_name and i + 1 < len(episodes):
             return episodes[i + 1]
     return None
-
-def parse_link(link):
-    match = re.match(r"https://t\.me/([^/]+)/(\d+)", link)
-    if match:
-        return match.group(1), int(match.group(2))
-    return None
-
-def vlc_link(tg_link):
-    return tg_link.replace("https://", "vlc://")
 
 def is_authorized(update):
     return update.effective_user.id == YOUR_CHAT_ID
@@ -121,7 +108,7 @@ async def cmd_start(update, context):
 async def cmd_help(update, context):
     if not is_authorized(update):
         return
-    await update.message.reply_text("🤖 *Comandi disponibili:*\n\n/start — Menu principale\n/aggiungi — Aggiungi un episodio\n/cronologia — Ultimi episodi visti\n/whoami — Il tuo Chat ID\n/help — Questo messaggio\n\n*Come aggiungere un episodio:*\n`/aggiungi Serie | Nome episodio | https://t.me/canale/123`", parse_mode="Markdown")
+    await update.message.reply_text("🤖 *Comandi disponibili:*\n\n/start — Menu principale\n/aggiungi — Aggiungi un episodio\n/cronologia — Ultimi episodi visti\n/whoami — Il tuo Chat ID\n/help — Questo messaggio\n\n*Come aggiungere un episodio:*\n`/aggiungi Serie | Nome episodio | https://t.me/c/123/456`", parse_mode="Markdown")
 
 async def cmd_cronologia(update, context):
     if not is_authorized(update):
@@ -145,7 +132,7 @@ async def cmd_aggiungi(update, context):
     args = update.message.text.partition(" ")[2].strip()
     if args and "|" in args:
         return await _save_episode_from_text(update, args)
-    await update.message.reply_text("➕ *Aggiungi un episodio*\n\nInviami i dati in questo formato:\n\n`Serie | Nome episodio | https://t.me/canale/123`\n\nEsempio:\n`One Piece | OP01 - Il re dei pirati | https://t.me/miocanale/101`\n\nScrivi /annulla per uscire.", parse_mode="Markdown")
+    await update.message.reply_text("➕ *Aggiungi un episodio*\n\nFormato:\n`Serie | Nome episodio | https://t.me/c/123/456`\n\nScrivi /annulla per uscire.", parse_mode="Markdown")
     return WAITING_FOR_EPISODE
 
 async def receive_episode(update, context):
@@ -161,11 +148,11 @@ async def cmd_annulla(update, context):
 async def _save_episode_from_text(update, text):
     parts = [p.strip() for p in text.split("|")]
     if len(parts) != 3:
-        await update.message.reply_text("❌ Formato non valido. Usa:\n`Serie | Nome episodio | https://t.me/canale/123`", parse_mode="Markdown")
+        await update.message.reply_text("❌ Formato non valido.\n`Serie | Nome | https://t.me/c/123/456`", parse_mode="Markdown")
         return
     series, ep_name, ep_link = parts
-    if not re.match(r"https://t\.me/[^/]+/\d+", ep_link):
-        await update.message.reply_text("❌ Link non valido. Deve essere:\n`https://t.me/nomecanale/123`", parse_mode="Markdown")
+    if not re.match(r"https://t\.me/", ep_link):
+        await update.message.reply_text("❌ Link non valido.", parse_mode="Markdown")
         return
     data = load_episodes()
     if series not in data:
@@ -177,7 +164,7 @@ async def _save_episode_from_text(update, text):
     data[series]["episodes"].append({"name": ep_name, "link": ep_link})
     save_episodes(data)
     total = len(data[series]["episodes"])
-    await update.message.reply_text(f"✅ Aggiunto!\n\n🎬 *{series}*\n📺 {ep_name}\n📊 Totale episodi: {total}", parse_mode="Markdown")
+    await update.message.reply_text(f"✅ Aggiunto!\n\n🎬 *{series}*\n📺 {ep_name}\n📊 Totale: {total}", parse_mode="Markdown")
 
 async def button_handler(update, context):
     query = update.callback_query
@@ -194,7 +181,7 @@ async def button_handler(update, context):
         text, keyboard = episodes_keyboard(series, int(page_str))
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
         return
-        if data.startswith("play|"):
+    if data.startswith("play|"):
         _, series, ep_name = data.split("|", 2)
         episodes_data = load_episodes()
         episodes = episodes_data.get(series, {}).get("episodes", [])
@@ -209,11 +196,7 @@ async def button_handler(update, context):
             keyboard_rows.append([InlineKeyboardButton(f"▶️ Prossimo: {next_ep['name']}", callback_data=f"play|{series}|{next_ep['name']}")])
         keyboard_rows.append([InlineKeyboardButton("📱 Apri in VLC", url=ep["link"].replace("https://", "vlc://"))])
         keyboard_rows.append([InlineKeyboardButton("🏠 Home", callback_data="home")])
-        await query.edit_message_text(
-            f"📺 *{ep_name}*\n\nPremi il bottone per aprire in VLC 👇",
-            reply_markup=InlineKeyboardMarkup(keyboard_rows),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text(f"📺 *{ep_name}*\n\nPremi il bottone per aprire in VLC 👇", reply_markup=InlineKeyboardMarkup(keyboard_rows), parse_mode="Markdown")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
