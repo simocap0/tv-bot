@@ -194,7 +194,7 @@ async def button_handler(update, context):
         text, keyboard = episodes_keyboard(series, int(page_str))
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
         return
-    if data.startswith("play|"):
+        if data.startswith("play|"):
         _, series, ep_name = data.split("|", 2)
         episodes_data = load_episodes()
         episodes = episodes_data.get(series, {}).get("episodes", [])
@@ -202,27 +202,18 @@ async def button_handler(update, context):
         if not ep:
             await query.edit_message_text("❌ Episodio non trovato.")
             return
-        parsed = parse_link(ep["link"])
-        if not parsed:
-            await query.edit_message_text("❌ Link non valido.")
-            return
-        channel_username, message_id = parsed
-        await query.edit_message_text(f"⏳ Invio in corso: *{ep_name}*...", parse_mode="Markdown")
-        forwarded = False
-        try:
-            await context.bot.forward_message(chat_id=query.message.chat_id, from_chat_id=f"@{channel_username}", message_id=message_id)
-            forwarded = True
-        except Exception as e:
-            logger.warning(f"Forward fallito: {e}")
         record_watch(series, ep_name, ep["link"])
         next_ep = get_next_episode(series, ep_name)
         keyboard_rows = []
         if next_ep:
             keyboard_rows.append([InlineKeyboardButton(f"▶️ Prossimo: {next_ep['name']}", callback_data=f"play|{series}|{next_ep['name']}")])
-        keyboard_rows.append([InlineKeyboardButton("📱 Apri in VLC", url=vlc_link(ep["link"]))])
+        keyboard_rows.append([InlineKeyboardButton("📱 Apri in VLC", url=ep["link"].replace("https://", "vlc://"))])
         keyboard_rows.append([InlineKeyboardButton("🏠 Home", callback_data="home")])
-        msg = "✅ Buona visione! 🍿\n\nSe il video non parte, usa il bottone VLC 👇" if forwarded else "⚠️ Il canale non permette l'inoltro.\nUsa il bottone VLC per guardare 👇"
-        await context.bot.send_message(chat_id=query.message.chat_id, text=msg, reply_markup=InlineKeyboardMarkup(keyboard_rows))
+        await query.edit_message_text(
+            f"📺 *{ep_name}*\n\nPremi il bottone per aprire in VLC 👇",
+            reply_markup=InlineKeyboardMarkup(keyboard_rows),
+            parse_mode="Markdown"
+        )
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
