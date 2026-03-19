@@ -108,7 +108,7 @@ async def cmd_start(update, context):
 async def cmd_help(update, context):
     if not is_authorized(update):
         return
-    await update.message.reply_text("🤖 *Comandi disponibili:*\n\n/start — Menu principale\n/aggiungi — Aggiungi un episodio\n/cronologia — Ultimi episodi visti\n/whoami — Il tuo Chat ID\n/help — Questo messaggio\n\n*Come aggiungere un episodio:*\n`/aggiungi Serie | Nome episodio | https://t.me/c/123/456`", parse_mode="Markdown")
+    await update.message.reply_text("🤖 *Comandi disponibili:*\n\n/start — Menu principale\n/aggiungi — Aggiungi un episodio\n/cronologia — Ultimi episodi visti\n/whoami — Il tuo Chat ID\n/help — Questo messaggio\n\n*Come aggiungere un episodio:*\n`/aggiungi Serie | Nome episodio | https://t.me/canale/123`", parse_mode="Markdown")
 
 async def cmd_cronologia(update, context):
     if not is_authorized(update):
@@ -132,7 +132,7 @@ async def cmd_aggiungi(update, context):
     args = update.message.text.partition(" ")[2].strip()
     if args and "|" in args:
         return await _save_episode_from_text(update, args)
-    await update.message.reply_text("➕ *Aggiungi un episodio*\n\nFormato:\n`Serie | Nome episodio | https://t.me/c/123/456`\n\nScrivi /annulla per uscire.", parse_mode="Markdown")
+    await update.message.reply_text("➕ *Aggiungi un episodio*\n\nFormato:\n`Serie | Nome episodio | https://t.me/canale/123`\n\nScrivi /annulla per uscire.", parse_mode="Markdown")
     return WAITING_FOR_EPISODE
 
 async def receive_episode(update, context):
@@ -148,7 +148,7 @@ async def cmd_annulla(update, context):
 async def _save_episode_from_text(update, text):
     parts = [p.strip() for p in text.split("|")]
     if len(parts) != 3:
-        await update.message.reply_text("❌ Formato non valido.\n`Serie | Nome | https://t.me/c/123/456`", parse_mode="Markdown")
+        await update.message.reply_text("❌ Formato non valido.\n`Serie | Nome | https://t.me/canale/123`", parse_mode="Markdown")
         return
     series, ep_name, ep_link = parts
     if not re.match(r"https://t\.me/", ep_link):
@@ -194,9 +194,13 @@ async def button_handler(update, context):
         keyboard_rows = []
         if next_ep:
             keyboard_rows.append([InlineKeyboardButton(f"▶️ Prossimo: {next_ep['name']}", callback_data=f"play|{series}|{next_ep['name']}")])
-        keyboard_rows.append([InlineKeyboardButton("📱 Apri in VLC", url=ep["link"].replace("https://", "vlc://"))])
+        keyboard_rows.append([InlineKeyboardButton("▶️ Guarda episodio", url=ep["link"])])
         keyboard_rows.append([InlineKeyboardButton("🏠 Home", callback_data="home")])
-        await query.edit_message_text(f"📺 *{ep_name}*\n\nPremi il bottone per aprire in VLC 👇", reply_markup=InlineKeyboardMarkup(keyboard_rows), parse_mode="Markdown")
+        await query.edit_message_text(
+            f"📺 *{ep_name}*\n\nPremi il bottone per guardare 👇",
+            reply_markup=InlineKeyboardMarkup(keyboard_rows),
+            parse_mode="Markdown"
+        )
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
